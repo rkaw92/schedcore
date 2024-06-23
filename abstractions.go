@@ -7,13 +7,23 @@ import (
 )
 
 type Timer struct {
-	NextAt   time.Time
-	TimerId  uuid.UUID
-	TenantId uuid.UUID
-	Ushard   int16
-	Schedule string
-	Enabled  bool
-	Done     bool
+	NextAt      time.Time
+	TenantId    uuid.UUID
+	TimerId     uuid.UUID
+	Ushard      int16
+	Schedule    string
+	Enabled     bool
+	Done        bool
+	Payload     string
+	Destination string
+}
+
+type TimerMessage struct {
+	ISODate     string      `json:"isoDate"`
+	TenantId    uuid.UUID   `json:"tenantId"`
+	TimerId     uuid.UUID   `json:"timerId"`
+	Payload     interface{} `json:"payload"`
+	Destination string      `json:"-"`
 }
 
 type RunnerState struct {
@@ -41,5 +51,20 @@ type TimerStoreForAdmin interface {
 }
 
 type RunnerStore interface {
-	GetState(MyUshard int16) (RunnerState, error)
+	GetState(myUshard int16) (RunnerState, error)
+	SaveState(newState RunnerState) error
+}
+
+type MessagingGateway interface {
+	GetDispatcherForRunner() (TimerDispatcher, error)
+}
+
+type DispatchResult struct {
+	update *TimerUpdate
+	err    error
+}
+
+type TimerDispatcher interface {
+	Dispatch(msg TimerMessage, update *TimerUpdate, results chan<- DispatchResult)
+	Destroy() error
 }

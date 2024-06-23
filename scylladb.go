@@ -30,31 +30,38 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 	ctx := context.TODO()
 
 	scanner := store.session.Query(
-		"SELECT tenant_id, timer_id, done, enabled, schedule FROM timers_64_mat WHERE ushard = ? AND next_at = ?",
+		"SELECT tenant_id, timer_id, done, enabled, schedule, payload, destination FROM timers_mat WHERE ushard = ? AND next_at = ?",
 		ushard,
 		next_at,
 	).WithContext(ctx).Consistency(gocql.One).Iter().Scanner()
 	for scanner.Next() {
 		var (
-			tenantId gocql.UUID
-			timerId  gocql.UUID
-			done     bool
-			enabled  bool
-			schedule string
+			tenantId    gocql.UUID
+			timerId     gocql.UUID
+			done        bool
+			enabled     bool
+			schedule    string
+			payload     string
+			destination string
 		)
-		err := scanner.Scan(&tenantId, &timerId, &done, &enabled, &schedule)
+		err := scanner.Scan(&tenantId, &timerId, &done, &enabled, &schedule, &payload, &destination)
 		if err != nil {
 			return nil, err
 		}
 		all = append(all, Timer{
 			next_at,
-			uuid.Must(uuid.FromBytes(timerId.Bytes())),
 			uuid.Must(uuid.FromBytes(tenantId.Bytes())),
+			uuid.Must(uuid.FromBytes(timerId.Bytes())),
 			ushard,
 			schedule,
 			enabled,
 			done,
+			payload,
+			destination,
 		})
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
 	}
 
 	return all, nil
@@ -66,7 +73,7 @@ func (store *ScyllaStore) UpdateTimers(updates []TimerUpdate) error {
 	batch.SetConsistency(gocql.LocalQuorum)
 	for _, update := range updates {
 		batch.Query(
-			"UPDATE timers_64 SET next_at = ?, done = ? WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
+			"UPDATE timers SET next_at = ?, done = ? WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
 			update.SetNextAt,
 			update.IsDone,
 			[16]byte(update.TenantId),

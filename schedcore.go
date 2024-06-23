@@ -19,7 +19,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	startAt, err := time.Parse(time.RFC3339, "2024-06-22T00:00:00Z")
+	startAt, err := time.Parse(time.RFC3339, "2024-06-22T12:00:00Z")
 	if err != nil {
 		panic(err)
 	}
@@ -27,10 +27,15 @@ func main() {
 	secondsClock := make(chan time.Time, 1)
 	go seconds(wallclockTicker.C, secondsClock)
 
+	gateway, err := NewRabbitGateway("amqp://guest:guest@127.0.0.1/")
+	if err != nil {
+		panic(err)
+	}
+
 	var wallclocksForRunners [NUM_WORKERS]chan time.Time
 	for i := range wallclocksForRunners {
 		wallclocksForRunners[i] = make(chan time.Time, 10)
-		go runner(int16(i), db, startAt, wallclocksForRunners[i])
+		go runner(int16(i), db, gateway, startAt, wallclocksForRunners[i])
 	}
 	go broadcast(secondsClock, wallclocksForRunners)
 	neverQuit := make(chan interface{})
