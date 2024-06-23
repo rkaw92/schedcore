@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	json "github.com/goccy/go-json"
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
 )
@@ -41,10 +42,15 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 			done        bool
 			enabled     bool
 			schedule    string
-			payload     string
+			payloadJSON []byte
 			destination string
 		)
-		err := scanner.Scan(&tenantId, &timerId, &done, &enabled, &schedule, &payload, &destination)
+		err := scanner.Scan(&tenantId, &timerId, &done, &enabled, &schedule, &payloadJSON, &destination)
+		if err != nil {
+			return nil, err
+		}
+		var payload interface{}
+		err = json.Unmarshal(payloadJSON, &payload)
 		if err != nil {
 			return nil, err
 		}

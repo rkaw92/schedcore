@@ -14,7 +14,7 @@ type Timer struct {
 	Schedule    string
 	Enabled     bool
 	Done        bool
-	Payload     string
+	Payload     interface{}
 	Destination string
 }
 
