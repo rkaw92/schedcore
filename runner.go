@@ -8,16 +8,30 @@ import (
 func runner(
 	ushard int16,
 	timerStore TimerStoreForRunner,
+	stateStore RunnerStore,
 	gateway MessagingGateway,
-	startAt time.Time,
 	wallclock <-chan time.Time,
 ) {
-	// TODO: Use runner state store to read and persist startAt
+	myState, err := stateStore.GetState(ushard)
+	if err != nil {
+		panic(err)
+	}
+	startAt := myState.Next
+	if startAt.IsZero() {
+		startAt = time.Now()
+	}
 	workerTicker := make(chan time.Time, 10)
 	go virtclock(wallclock, startAt, workerTicker)
-	// TODO: Error handling for init
-	dispatcher, _ := gateway.GetDispatcherForRunner()
+	dispatcher, err := gateway.GetDispatcherForRunner()
+	if err != nil {
+		panic(err)
+	}
 	for timestamp := range workerTicker {
+		myState.Next = timestamp
+		err := stateStore.SaveState(myState)
+		if err != nil {
+			panic(err)
+		}
 		pending, err := timerStore.GetPendingTimers(timestamp, ushard)
 		if err != nil {
 			panic(err)
@@ -30,6 +44,9 @@ func runner(
 		resultsChan := make(chan DispatchResult, 100)
 		expectedOutcomes := 0
 		for _, timer := range pending {
+			if timer.Done || !timer.Enabled {
+				continue
+			}
 			updateIfSuccessful := &TimerUpdate{
 				timer.TenantId,
 				timer.TimerId,
@@ -63,5 +80,6 @@ func runner(
 		if err != nil {
 			panic(err)
 		}
+		// TODO: DON'T PANIC!
 	}
 }

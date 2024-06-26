@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	json "github.com/goccy/go-json"
@@ -88,5 +89,28 @@ func (store *ScyllaStore) UpdateTimers(updates []TimerUpdate) error {
 		)
 	}
 	err := store.session.ExecuteBatch(batch)
+	return err
+}
+
+func (store *ScyllaStore) GetState(myUshard int16) (RunnerState, error) {
+	ctx := context.TODO()
+	state := RunnerState{MyUshard: myUshard}
+	err := store.session.Query(
+		"SELECT next FROM runners WHERE ushard = ?",
+		myUshard,
+	).WithContext(ctx).Consistency(gocql.One).Scan(&state.Next)
+	if err != nil && !errors.Is(err, gocql.ErrNotFound) {
+		return state, err
+	}
+	return state, nil
+}
+
+func (store *ScyllaStore) SaveState(newState RunnerState) error {
+	ctx := context.TODO()
+	err := store.session.Query(
+		"UPDATE runners SET next = ? WHERE ushard = ?",
+		newState.Next,
+		newState.MyUshard,
+	).WithContext(ctx).Consistency(gocql.LocalOne).Exec()
 	return err
 }

@@ -16,3 +16,9 @@ CREATE MATERIALIZED VIEW timers_mat AS
     FROM timers
     WHERE next_at IS NOT NULL AND ushard IS NOT NULL AND tenant_id IS NOT NULL AND timer_id IS NOT NULL
     PRIMARY KEY ((ushard, next_at), tenant_id, timer_id);
+
+CREATE TABLE runners (
+    ushard smallint,
+    next timestamp,
+    PRIMARY KEY (ushard)
+);
