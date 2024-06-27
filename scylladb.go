@@ -83,9 +83,9 @@ func (store *ScyllaStore) UpdateTimers(updates []TimerUpdate) error {
 			"UPDATE timers SET next_at = ?, done = ? WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
 			update.SetNextAt,
 			update.IsDone,
-			[16]byte(update.TenantId),
-			[16]byte(update.TimerId),
-			update.Ushard,
+			[16]byte(update.Timer.TenantId),
+			[16]byte(update.Timer.TimerId),
+			update.Timer.Ushard,
 		)
 	}
 	err := store.session.ExecuteBatch(batch)

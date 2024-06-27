@@ -32,9 +32,7 @@ type RunnerState struct {
 }
 
 type TimerUpdate struct {
-	TenantId  uuid.UUID
-	TimerId   uuid.UUID
-	Ushard    int16
+	Timer     *Timer
 	SetNextAt time.Time
 	IsDone    bool
 }
@@ -54,7 +52,6 @@ type RunnerStore interface {
 	GetState(myUshard int16) (RunnerState, error)
 	SaveState(newState RunnerState) error
 }
-
 type MessagingGateway interface {
 	GetDispatcherForRunner() (TimerDispatcher, error)
 }
