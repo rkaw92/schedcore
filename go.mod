@@ -10,12 +10,16 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/robfig/cron v1.2.0
+	github.com/rs/zerolog v1.33.0
 )
 
 require (
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/sys v0.22.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )

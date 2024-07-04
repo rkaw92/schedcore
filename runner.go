@@ -1,10 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/robfig/cron"
+	"github.com/rs/zerolog/log"
 )
 
 func runner(
@@ -15,21 +14,25 @@ func runner(
 	gateway MessagingGateway,
 	wallclock <-chan time.Time,
 ) {
-	scheduleParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.DowOptional)
 	myState, err := runnerDb.GetState(ushard)
 	if err != nil {
 		panic(err)
 	}
 	startAt := myState.Next
+	isNew := false
 	if startAt.IsZero() {
 		startAt = time.Now()
+		isNew = true
 	}
-	workerTicker := make(chan time.Time, 10)
-	go virtclock(wallclock, startAt, workerTicker)
+	log.Info().Int16("ushard", ushard).Time("startAt", startAt).Bool("isNew", isNew).Msg("runner starting")
 	dispatcher, err := gateway.GetDispatcherForRunner()
 	if err != nil {
 		panic(err)
 	}
+
+	workerTicker := make(chan time.Time, 10)
+	go virtclock(wallclock, startAt, workerTicker)
+
 	for timestamp := range workerTicker {
 		myState.Next = timestamp
 		err := runnerDb.SaveState(myState)
@@ -40,26 +43,19 @@ func runner(
 		if err != nil {
 			panic(err)
 		}
-		if true || len(pending) > 0 {
-			fmt.Printf("%d: %s %+v\n", ushard, timestamp.Format(time.RFC3339), pending)
-		}
+
 		updates := make([]TimerUpdate, 0, len(pending))
 		invocations := make([]*Timer, 0, len(pending))
 		var failures []error
+
 		resultsChan := make(chan DispatchResult, 100)
 		expectedOutcomes := 0
 		for _, timer := range pending {
 			if timer.Done || !timer.Enabled {
 				continue
 			}
-			updateIfSuccessful := &TimerUpdate{Timer: &timer, SetNextAt: timer.NextAt}
-			if timer.Schedule != "" {
-				schedule, err := scheduleParser.Parse(timer.Schedule)
-				if err != nil {
-					continue
-				}
-				updateIfSuccessful.SetNextAt = schedule.Next(timer.NextAt)
-			} else {
+			updateIfSuccessful := &TimerUpdate{Timer: &timer, SetNextAt: timer.Next()}
+			if timer.Schedule == "" {
 				updateIfSuccessful.IsDone = true
 			}
 
@@ -86,11 +82,12 @@ func runner(
 			}
 		}
 
-		err = timerDb.UpdateTimers(updates)
+		// TODO: Parallelize?
+		err = historyDb.LogTimerInvocations(invocations)
 		if err != nil {
 			panic(err)
 		}
-		err = historyDb.LogTimerInvocations(invocations)
+		err = timerDb.UpdateTimers(updates)
 		if err != nil {
 			panic(err)
 		}

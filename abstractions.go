@@ -6,18 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Timer struct {
-	NextAt      time.Time
-	TenantId    uuid.UUID
-	TimerId     uuid.UUID
-	Ushard      int16
-	Schedule    string
-	Enabled     bool
-	Done        bool
-	Payload     interface{}
-	Destination string
-}
-
 type TimerMessage struct {
 	ISODate     string      `json:"isoDate"`
 	TenantId    uuid.UUID   `json:"tenantId"`
