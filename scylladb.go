@@ -114,3 +114,21 @@ func (store *ScyllaStore) SaveState(newState RunnerState) error {
 	).WithContext(ctx).Consistency(gocql.LocalOne).Exec()
 	return err
 }
+
+func (store *ScyllaStore) LogTimerInvocations(timers []*Timer) error {
+	ctx := context.TODO()
+	batch := store.session.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+	batch.SetConsistency(gocql.LocalOne)
+	now := time.Now()
+	for _, timer := range timers {
+		batch.Query(
+			"INSERT INTO invocations (tenant_id, timer_id, scheduled_at, real_at) VALUES (?, ?, ?, ?)",
+			[16]byte(timer.TenantId),
+			[16]byte(timer.TimerId),
+			timer.NextAt,
+			now,
+		)
+	}
+	err := store.session.ExecuteBatch(batch)
+	return err
+}

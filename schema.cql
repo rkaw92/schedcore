@@ -22,3 +22,11 @@ CREATE TABLE runners (
     next timestamp,
     PRIMARY KEY (ushard)
 );
+
+CREATE TABLE invocations (
+    tenant_id uuid,
+    timer_id uuid,
+    scheduled_at timestamp,
+    real_at timestamp,
+    PRIMARY KEY ((tenant_id, timer_id), scheduled_at)
+);

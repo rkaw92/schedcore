@@ -11,6 +11,7 @@ func runner(
 	ushard int16,
 	timerDb TimerStoreForRunner,
 	runnerDb RunnerStore,
+	historyDb HistoryStore,
 	gateway MessagingGateway,
 	wallclock <-chan time.Time,
 ) {
@@ -43,6 +44,7 @@ func runner(
 			fmt.Printf("%d: %s %+v\n", ushard, timestamp.Format(time.RFC3339), pending)
 		}
 		updates := make([]TimerUpdate, 0, len(pending))
+		invocations := make([]*Timer, 0, len(pending))
 		var failures []error
 		resultsChan := make(chan DispatchResult, 100)
 		expectedOutcomes := 0
@@ -80,10 +82,15 @@ func runner(
 				failures = append(failures, result.err)
 			} else {
 				updates = append(updates, *result.update)
+				invocations = append(invocations, result.update.Timer)
 			}
 		}
 
 		err = timerDb.UpdateTimers(updates)
+		if err != nil {
+			panic(err)
+		}
+		err = historyDb.LogTimerInvocations(invocations)
 		if err != nil {
 			panic(err)
 		}

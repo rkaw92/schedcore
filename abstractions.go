@@ -52,6 +52,11 @@ type RunnerStore interface {
 	GetState(myUshard int16) (RunnerState, error)
 	SaveState(newState RunnerState) error
 }
+
+type HistoryStore interface {
+	LogTimerInvocations(timers []*Timer) error
+}
+
 type MessagingGateway interface {
 	GetDispatcherForRunner() (TimerDispatcher, error)
 }

@@ -31,7 +31,7 @@ func main() {
 	var wallclocksForRunners [NUM_WORKERS]chan time.Time
 	for i := range wallclocksForRunners {
 		wallclocksForRunners[i] = make(chan time.Time, 10)
-		go runner(int16(i), db, db, gateway, wallclocksForRunners[i])
+		go runner(int16(i), db, db, db, gateway, wallclocksForRunners[i])
 	}
 	go broadcast(secondsClock, wallclocksForRunners)
 	neverQuit := make(chan interface{})
