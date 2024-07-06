@@ -13,10 +13,13 @@ func runner(
 	historyDb HistoryStore,
 	gateway MessagingGateway,
 	wallclock <-chan time.Time,
+	quit chan<- error,
 ) {
+	log.Debug().Int16("ushard", ushard).Msg("runner starting")
 	myState, err := runnerDb.GetState(ushard)
 	if err != nil {
-		panic(err)
+		quit <- err
+		return
 	}
 	startAt := myState.Next
 	isNew := false
@@ -24,10 +27,11 @@ func runner(
 		startAt = time.Now()
 		isNew = true
 	}
-	log.Info().Int16("ushard", ushard).Time("startAt", startAt).Bool("isNew", isNew).Msg("runner starting")
+	log.Info().Int16("ushard", ushard).Time("startAt", startAt).Bool("isNew", isNew).Msg("runner started")
 	dispatcher, err := gateway.GetDispatcherForRunner()
 	if err != nil {
-		panic(err)
+		quit <- err
+		return
 	}
 
 	workerTicker := make(chan time.Time, 10)
@@ -37,11 +41,13 @@ func runner(
 		myState.Next = timestamp
 		err := runnerDb.SaveState(myState)
 		if err != nil {
-			panic(err)
+			quit <- err
+			return
 		}
 		pending, err := timerDb.GetPendingTimers(timestamp, ushard)
 		if err != nil {
-			panic(err)
+			quit <- err
+			return
 		}
 
 		updates := make([]TimerUpdate, 0, len(pending))
@@ -85,12 +91,16 @@ func runner(
 		// TODO: Parallelize?
 		err = historyDb.LogTimerInvocations(invocations)
 		if err != nil {
-			panic(err)
+			quit <- err
+			return
 		}
 		err = timerDb.UpdateTimers(updates)
 		if err != nil {
-			panic(err)
+			quit <- err
+			return
 		}
-		// TODO: DON'T PANIC!
 	}
+
+	// Signal to the supervisor that we're done.
+	quit <- nil
 }

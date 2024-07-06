@@ -2,13 +2,44 @@ package main
 
 import "time"
 
+type CustomTicker struct {
+	realTicker     *time.Ticker
+	destroyChannel chan struct{}
+	Ticks          chan time.Time
+}
+
+func NewCustomTicker() *CustomTicker {
+	c := &CustomTicker{
+		realTicker:     time.NewTicker(time.Second),
+		destroyChannel: make(chan struct{}),
+		Ticks:          make(chan time.Time, 1),
+	}
+	go func() {
+		end := false
+		for !end {
+			select {
+			case now := <-c.realTicker.C:
+				c.Ticks <- now
+			case <-c.destroyChannel:
+				end = true
+			}
+		}
+		close(c.Ticks)
+	}()
+	return c
+}
+
+func (c *CustomTicker) Destroy() {
+	c.destroyChannel <- struct{}{}
+}
+
 // Translate a channel of Time instants to fall on full seconds.
 func seconds(input <-chan time.Time, output chan<- time.Time) {
 	for wallTime := range input {
 		wallTimeRounded := wallTime.Truncate(time.Second)
 		output <- wallTimeRounded
-		// TODO: Monitor clock lateness - if the ticker's time is not the same as realtime, we're running late!
 	}
+	close(output)
 }
 
 // Produces a channel that emits virtual-time ticks, where time is accelerated as needed
@@ -23,4 +54,5 @@ func virtclock(walltime <-chan time.Time, startAt time.Time, output chan<- time.
 		}
 		output <- virtualNow
 	}
+	close(output)
 }
