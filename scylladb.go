@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"net/url"
+	"strings"
 	"time"
 
 	json "github.com/goccy/go-json"
@@ -14,9 +16,14 @@ type ScyllaStore struct {
 	session *gocql.Session
 }
 
-func NewScyllaStore(hosts []string, keyspace string) (*ScyllaStore, error) {
+func NewScyllaStore(dbUrl url.URL) (*ScyllaStore, error) {
+	hosts := []string{dbUrl.Host}
+
 	cluster := gocql.NewCluster(hosts...)
-	cluster.Keyspace = keyspace
+	keyspace, hasPath := strings.CutPrefix(dbUrl.Path, "/")
+	if hasPath {
+		cluster.Keyspace = keyspace
+	}
 	session, err := cluster.CreateSession()
 	if err != nil {
 		return nil, err

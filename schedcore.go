@@ -61,8 +61,13 @@ func supervisor(
 	wg.Done()
 }
 
-func run(timerDb TimerStoreForRunner, runnerDb RunnerStore, historyDb HistoryStore) {
-	gateway, err := NewRabbitGateway("amqp://guest:guest@127.0.0.1/")
+func run(
+	timerDb TimerStoreForRunner,
+	runnerDb RunnerStore,
+	historyDb HistoryStore,
+	config Config,
+) {
+	gateway, err := NewRabbitGateway(config.BROKER_URL)
 	if err != nil {
 		panic(err)
 	}
@@ -98,7 +103,9 @@ func main() {
 	zerolog.TimeFieldFormat = time.RFC3339
 	zerolog.TimestampFunc = func() time.Time { return time.Now().UTC() }
 
-	db, err := NewScyllaStore([]string{"192.168.79.155"}, "timerapp")
+	config := NewConfigFromEnv()
+
+	db, err := NewScyllaStore(config.DB_URL)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +113,7 @@ func main() {
 	args := os.Args
 	switch argv0 := args[0]; filepath.Base(argv0) {
 	case "schedcore-runner":
-		run(db, db, db)
+		run(db, db, db, config)
 	case "schedcore-api":
 		runAPI(db)
 	case "schedcore":

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/ThreeDotsLabs/watermill"
@@ -15,10 +16,13 @@ type RabbitGateway struct {
 	publisher *amqp.Publisher
 }
 
-func NewRabbitGateway(url string) (*RabbitGateway, error) {
+func NewRabbitGateway(url url.URL) (*RabbitGateway, error) {
 	config := amqp.Config{
-		Connection: amqp.ConnectionConfig{AmqpURI: url},
-		Marshaler:  amqp.DefaultMarshaler{},
+		Connection: amqp.ConnectionConfig{
+			AmqpURI:   url.String(),
+			Reconnect: amqp.DefaultReconnectConfig(),
+		},
+		Marshaler: amqp.DefaultMarshaler{},
 		Exchange: amqp.ExchangeConfig{
 			GenerateName: func(topic string) string {
 				return strings.Split(topic, "/")[0]
