@@ -30,16 +30,15 @@ func NewScyllaStore(hosts []string, keyspace string) (*ScyllaStore, error) {
 func (store *ScyllaStore) Create(timer *Timer) error {
 	ctx := context.TODO()
 	err := store.session.Query(`INSERT INTO timers (
-		tenant_id, timer_id, ushard, next_at, schedule, enabled, done, payload, destination
+		tenant_id, timer_id, ushard, next_at, schedule, done, payload, destination
 	) VALUES (
-		?, ?, ?, ?, ?, ?, ?, ?, ?
+		?, ?, ?, ?, ?, ?, ?, ?
 	)`,
 		[16]byte(timer.TenantId),
 		[16]byte(timer.TimerId),
 		timer.Ushard,
 		timer.NextAt,
 		timer.Schedule,
-		timer.Enabled,
 		timer.Done,
 		timer.Payload,
 		timer.Destination,
@@ -63,7 +62,7 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 	ctx := context.TODO()
 
 	scanner := store.session.Query(
-		"SELECT tenant_id, timer_id, done, enabled, schedule, payload, destination FROM timers_mat WHERE ushard = ? AND next_at = ?",
+		"SELECT tenant_id, timer_id, done, schedule, payload, destination FROM timers_mat WHERE ushard = ? AND next_at = ?",
 		ushard,
 		next_at,
 	).WithContext(ctx).Consistency(gocql.One).Iter().Scanner()
@@ -72,12 +71,11 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 			tenantId    gocql.UUID
 			timerId     gocql.UUID
 			done        bool
-			enabled     bool
 			schedule    string
 			payloadJSON []byte
 			destination string
 		)
-		err := scanner.Scan(&tenantId, &timerId, &done, &enabled, &schedule, &payloadJSON, &destination)
+		err := scanner.Scan(&tenantId, &timerId, &done, &schedule, &payloadJSON, &destination)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +90,6 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 			uuid.Must(uuid.FromBytes(timerId.Bytes())),
 			ushard,
 			schedule,
-			enabled,
 			done,
 			payload,
 			destination,

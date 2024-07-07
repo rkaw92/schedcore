@@ -21,7 +21,6 @@ type CreateTimerInput struct {
 		TimerId     string          `json:"timerId"`
 		NextAt      time.Time       `json:"nextAt"`
 		Schedule    string          `json:"schedule"`
-		Enabled     bool            `json:"enabled" required:"false"`
 		Payload     json.RawMessage `json:"payload"`
 		Destination string          `json:"destination"`
 	}
@@ -74,7 +73,6 @@ func runAPI(adminDb TimerStoreForAdmin) {
 			NextAt:      input.Body.NextAt,
 			Ushard:      uuid2ushard(timerId),
 			Schedule:    input.Body.Schedule,
-			Enabled:     true,
 			Done:        false,
 			Payload:     input.Body.Payload,
 			Destination: input.Body.Destination,

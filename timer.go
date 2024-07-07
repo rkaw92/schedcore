@@ -16,7 +16,6 @@ type Timer struct {
 	TimerId     uuid.UUID
 	Ushard      int16
 	Schedule    string
-	Enabled     bool
 	Done        bool
 	Payload     interface{}
 	Destination string

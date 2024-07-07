@@ -57,7 +57,7 @@ func runner(
 		resultsChan := make(chan DispatchResult, 100)
 		expectedOutcomes := 0
 		for _, timer := range pending {
-			if timer.Done || !timer.Enabled {
+			if timer.Done {
 				continue
 			}
 			updateIfSuccessful := &TimerUpdate{Timer: &timer, SetNextAt: timer.Next()}
