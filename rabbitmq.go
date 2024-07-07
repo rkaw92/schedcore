@@ -1,40 +1,55 @@
 package main
 
 import (
-	"errors"
 	"strings"
 
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
+	"github.com/ThreeDotsLabs/watermill/message"
 	json "github.com/goccy/go-json"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type RabbitGateway struct {
-	Connection *amqp.Connection
+	publisher *amqp.Publisher
 }
 
 func NewRabbitGateway(url string) (*RabbitGateway, error) {
-	conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+	config := amqp.Config{
+		Connection: amqp.ConnectionConfig{AmqpURI: url},
+		Marshaler:  amqp.DefaultMarshaler{},
+		Exchange: amqp.ExchangeConfig{
+			GenerateName: func(topic string) string {
+				return strings.Split(topic, "/")[0]
+			},
+			Type:    "topic",
+			Durable: true,
+		},
+		Publish: amqp.PublishConfig{
+			GenerateRoutingKey: func(topic string) string {
+				return strings.Join(strings.Split(topic, "/")[1:], "/")
+			},
+			ConfirmDelivery: true,
+		},
+		TopologyBuilder: &amqp.DefaultTopologyBuilder{},
+	}
+	// TODO: Use zerolog as logger.
+	pub, err := amqp.NewPublisher(config, watermill.NewStdLogger(false, false))
 	if err != nil {
 		return nil, err
 	}
-	return &RabbitGateway{conn}, nil
+	return &RabbitGateway{
+		publisher: pub,
+	}, nil
 }
 
 func (gateway *RabbitGateway) GetDispatcherForRunner() (TimerDispatcher, error) {
-	newChan, err := gateway.Connection.Channel()
-	if err != nil {
-		return nil, err
-	}
-	err = newChan.Confirm(false)
-	if err != nil {
-		newChan.Close()
-		return nil, err
-	}
-	return &RabbitDispatcher{newChan}, nil
+	return &RabbitDispatcher{
+		gateway,
+	}, nil
 }
 
 type RabbitDispatcher struct {
-	Channel *amqp.Channel
+	gateway *RabbitGateway
 }
 
 func (dispatcher *RabbitDispatcher) Dispatch(
@@ -42,38 +57,25 @@ func (dispatcher *RabbitDispatcher) Dispatch(
 	update *TimerUpdate,
 	results chan<- DispatchResult,
 ) {
-	exchange, routingKey, sepFound := strings.Cut(timer.Destination, "/")
-	if !sepFound {
-		exchange = ""
-		routingKey = timer.Destination
-	}
 	body, err := json.Marshal(timer)
 	if err != nil {
 		results <- DispatchResult{nil, err}
 		return
 	}
-	deferred, err := dispatcher.Channel.PublishWithDeferredConfirm(
-		exchange,
-		routingKey,
-		true,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        body,
-		},
-	)
+	// TODO: Deterministic invocation ID in body
+	err = dispatcher.gateway.publisher.Publish(timer.Destination, message.NewMessage(
+		// TODO: Deterministic message UUID
+		watermill.NewUUID(),
+		body,
+	))
 	if err != nil {
 		results <- DispatchResult{nil, err}
-		return
-	}
-	published := deferred.Wait()
-	if published {
-		results <- DispatchResult{update, nil}
 	} else {
-		results <- DispatchResult{nil, errors.New("AMQP broker rejected message")}
+		results <- DispatchResult{update, nil}
 	}
 }
 
 func (dispatcher *RabbitDispatcher) Destroy() error {
-	return dispatcher.Channel.Close()
+	// TODO: Figure out why this doesn't quit the process
+	return dispatcher.gateway.publisher.Close()
 }

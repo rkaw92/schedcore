@@ -99,6 +99,12 @@ func runner(
 			quit <- err
 			return
 		}
+
+		// If we failed to publish at least one timer message, quit instead of progressing
+		if len(failures) > 0 {
+			quit <- failures[0]
+			return
+		}
 	}
 
 	// Signal to the supervisor that we're done.
