@@ -6,7 +6,9 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/alexdrl/zerowater"
 	json "github.com/goccy/go-json"
+	"github.com/rs/zerolog/log"
 )
 
 type RabbitGateway struct {
@@ -29,11 +31,13 @@ func NewRabbitGateway(url string) (*RabbitGateway, error) {
 				return strings.Join(strings.Split(topic, "/")[1:], "/")
 			},
 			ConfirmDelivery: true,
+			ChannelPoolSize: 16,
 		},
 		TopologyBuilder: &amqp.DefaultTopologyBuilder{},
 	}
-	// TODO: Use zerolog as logger.
-	pub, err := amqp.NewPublisher(config, watermill.NewStdLogger(false, false))
+	pub, err := amqp.NewPublisher(config, zerowater.NewZerologLoggerAdapter(
+		log.Logger.With().Str("component", "RabbitGateway").Logger(),
+	))
 	if err != nil {
 		return nil, err
 	}

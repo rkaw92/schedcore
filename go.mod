@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.33.0
+	github.com/alexdrl/zerowater v0.0.3
 )
 
 require (
