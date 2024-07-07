@@ -10,6 +10,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 func broadcast(source <-chan interface{}, dest []chan interface{}) {
