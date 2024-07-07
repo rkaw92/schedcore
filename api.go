@@ -29,10 +29,11 @@ type CreateTimerInput struct {
 type CreateTimerOutput struct {
 	Location string `header:"Location"`
 	Body     struct {
-		TenantId string    `json:"tenantId"`
-		TimerId  string    `json:"timerId"`
-		Ushard   int16     `json:"ushard"`
-		NextAt   time.Time `json:"nextAt"`
+		TenantId         string    `json:"tenantId"`
+		TimerId          string    `json:"timerId"`
+		Ushard           int16     `json:"ushard"`
+		NextAt           time.Time `json:"nextAt"`
+		NextInvocationId string    `json:"nextInvocationId"`
 	}
 }
 
@@ -68,14 +69,15 @@ func runAPI(adminDb TimerStoreForAdmin, config Config) {
 			return nil, huma.Error400BadRequest("timerId must be a valid UUID", parseError)
 		}
 		timer := &Timer{
-			TenantId:    tenantId,
-			TimerId:     timerId,
-			NextAt:      input.Body.NextAt,
-			Ushard:      uuid2ushard(timerId, config.TOTAL_USHARDS),
-			Schedule:    input.Body.Schedule,
-			Done:        false,
-			Payload:     input.Body.Payload,
-			Destination: input.Body.Destination,
+			TenantId:         tenantId,
+			TimerId:          timerId,
+			NextAt:           input.Body.NextAt,
+			Ushard:           uuid2ushard(timerId, config.TOTAL_USHARDS),
+			Schedule:         input.Body.Schedule,
+			Done:             false,
+			Payload:          input.Body.Payload,
+			Destination:      input.Body.Destination,
+			NextInvocationId: GenInvocationId(),
 		}
 		// Enforce creating timers in advance
 		if timer.NextAt.Before(time.Now().Add(MIN_TIME_HORIZON)) {
@@ -93,6 +95,7 @@ func runAPI(adminDb TimerStoreForAdmin, config Config) {
 		resp.Body.TimerId = timer.TimerId.String()
 		resp.Body.Ushard = timer.Ushard
 		resp.Body.NextAt = timer.NextAt
+		resp.Body.NextInvocationId = timer.NextInvocationId.String()
 		resp.Location = "/tenants/" + resp.Body.TenantId + "/timers/" + resp.Body.TimerId
 
 		return resp, nil

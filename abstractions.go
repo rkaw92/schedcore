@@ -7,11 +7,12 @@ import (
 )
 
 type TimerMessage struct {
-	ISODate     string      `json:"isoDate"`
-	TenantId    uuid.UUID   `json:"tenantId"`
-	TimerId     uuid.UUID   `json:"timerId"`
-	Payload     interface{} `json:"payload"`
-	Destination string      `json:"-"`
+	ISODate      string      `json:"isoDate"`
+	TenantId     uuid.UUID   `json:"tenantId"`
+	TimerId      uuid.UUID   `json:"timerId"`
+	InvocationId uuid.UUID   `json:"invocationId"`
+	Payload      interface{} `json:"payload"`
+	Destination  string      `json:"-"`
 }
 
 type RunnerState struct {
@@ -20,9 +21,10 @@ type RunnerState struct {
 }
 
 type TimerUpdate struct {
-	Timer     *Timer
-	SetNextAt time.Time
-	IsDone    bool
+	Timer               *Timer
+	SetNextAt           time.Time
+	SetNextInvocationId uuid.UUID
+	IsDone              bool
 }
 
 type TimerStoreForRunner interface {

@@ -60,7 +60,11 @@ func runner(
 			if timer.Done {
 				continue
 			}
-			updateIfSuccessful := &TimerUpdate{Timer: &timer, SetNextAt: timer.Next()}
+			updateIfSuccessful := &TimerUpdate{
+				Timer:               &timer,
+				SetNextAt:           timer.Next(),
+				SetNextInvocationId: GenInvocationId(),
+			}
 			if timer.Schedule == "" {
 				updateIfSuccessful.IsDone = true
 			}
@@ -69,6 +73,7 @@ func runner(
 				timer.NextAt.Format(time.RFC3339),
 				timer.TenantId,
 				timer.TimerId,
+				timer.NextInvocationId,
 				timer.Payload,
 				timer.Destination,
 			}, updateIfSuccessful, resultsChan)

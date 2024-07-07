@@ -37,9 +37,9 @@ func NewScyllaStore(dbUrl url.URL) (*ScyllaStore, error) {
 func (store *ScyllaStore) Create(timer *Timer) error {
 	ctx := context.TODO()
 	err := store.session.Query(`INSERT INTO timers (
-		tenant_id, timer_id, ushard, next_at, schedule, done, payload, destination
+		tenant_id, timer_id, ushard, next_at, schedule, done, payload, destination, next_invocation_id
 	) VALUES (
-		?, ?, ?, ?, ?, ?, ?, ?
+		?, ?, ?, ?, ?, ?, ?, ?, ?
 	)`,
 		[16]byte(timer.TenantId),
 		[16]byte(timer.TimerId),
@@ -49,6 +49,7 @@ func (store *ScyllaStore) Create(timer *Timer) error {
 		timer.Done,
 		timer.Payload,
 		timer.Destination,
+		[16]byte(timer.NextInvocationId),
 	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 	return err
 }
@@ -69,20 +70,21 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 	ctx := context.TODO()
 
 	scanner := store.session.Query(
-		"SELECT tenant_id, timer_id, done, schedule, payload, destination FROM timers_mat WHERE ushard = ? AND next_at = ?",
+		"SELECT tenant_id, timer_id, done, schedule, payload, destination, next_invocation_id FROM timers_mat WHERE ushard = ? AND next_at = ?",
 		ushard,
 		next_at,
 	).WithContext(ctx).Consistency(gocql.One).Iter().Scanner()
 	for scanner.Next() {
 		var (
-			tenantId    gocql.UUID
-			timerId     gocql.UUID
-			done        bool
-			schedule    string
-			payloadJSON []byte
-			destination string
+			tenantId         gocql.UUID
+			timerId          gocql.UUID
+			done             bool
+			schedule         string
+			payloadJSON      []byte
+			destination      string
+			nextInvocationId gocql.UUID
 		)
-		err := scanner.Scan(&tenantId, &timerId, &done, &schedule, &payloadJSON, &destination)
+		err := scanner.Scan(&tenantId, &timerId, &done, &schedule, &payloadJSON, &destination, &nextInvocationId)
 		if err != nil {
 			return nil, err
 		}
@@ -100,6 +102,7 @@ func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]T
 			done,
 			payload,
 			destination,
+			uuid.Must(uuid.FromBytes(nextInvocationId.Bytes())),
 		})
 	}
 	if err := scanner.Err(); err != nil {
@@ -115,8 +118,9 @@ func (store *ScyllaStore) UpdateTimers(updates []TimerUpdate) error {
 	batch.SetConsistency(gocql.LocalQuorum)
 	for _, update := range updates {
 		batch.Query(
-			"UPDATE timers SET next_at = ?, done = ? WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
+			"UPDATE timers SET next_at = ?, next_invocation_id = ?, done = ? WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
 			update.SetNextAt,
+			[16]byte(update.SetNextInvocationId),
 			update.IsDone,
 			[16]byte(update.Timer.TenantId),
 			[16]byte(update.Timer.TimerId),
@@ -157,9 +161,10 @@ func (store *ScyllaStore) LogTimerInvocations(timers []*Timer) error {
 	now := time.Now()
 	for _, timer := range timers {
 		batch.Query(
-			"INSERT INTO invocations (tenant_id, timer_id, scheduled_at, real_at) VALUES (?, ?, ?, ?)",
+			"INSERT INTO invocations (tenant_id, timer_id, invocation_id, scheduled_at, real_at) VALUES (?, ?, ?, ?, ?)",
 			[16]byte(timer.TenantId),
 			[16]byte(timer.TimerId),
+			[16]byte(timer.NextInvocationId),
 			timer.NextAt,
 			now,
 		)

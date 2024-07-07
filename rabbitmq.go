@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/alexdrl/zerowater"
@@ -70,10 +69,8 @@ func (dispatcher *RabbitDispatcher) Dispatch(
 		results <- DispatchResult{nil, err}
 		return
 	}
-	// TODO: Deterministic invocation ID in body
 	err = dispatcher.gateway.publisher.Publish(timer.Destination, message.NewMessage(
-		// TODO: Deterministic message UUID
-		watermill.NewUUID(),
+		timer.InvocationId.String(),
 		body,
 	))
 	if err != nil {
