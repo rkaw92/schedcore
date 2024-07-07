@@ -45,7 +45,7 @@ type DeleteTimerOutput struct {
 	Body struct{}
 }
 
-func runAPI(adminDb TimerStoreForAdmin) {
+func runAPI(adminDb TimerStoreForAdmin, config Config) {
 	router := chi.NewMux()
 	api := humachi.New(router, huma.DefaultConfig("schedcore", "0.1.0"))
 
@@ -71,7 +71,7 @@ func runAPI(adminDb TimerStoreForAdmin) {
 			TenantId:    tenantId,
 			TimerId:     timerId,
 			NextAt:      input.Body.NextAt,
-			Ushard:      uuid2ushard(timerId),
+			Ushard:      uuid2ushard(timerId, config.TOTAL_USHARDS),
 			Schedule:    input.Body.Schedule,
 			Done:        false,
 			Payload:     input.Body.Payload,
@@ -113,7 +113,7 @@ func runAPI(adminDb TimerStoreForAdmin) {
 		if parseError != nil {
 			return nil, huma.Error400BadRequest("timerId must be a valid UUID", parseError)
 		}
-		ushard := uuid2ushard(timerId)
+		ushard := uuid2ushard(timerId, config.TOTAL_USHARDS)
 		err := adminDb.Delete(tenantId, timerId, ushard)
 		if err != nil {
 			return nil, huma.Error500InternalServerError("failed to delete timer", err)

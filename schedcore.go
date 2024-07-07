@@ -76,13 +76,13 @@ func run(
 
 	wg := &sync.WaitGroup{}
 	globalQuit := make(chan interface{})
-	quitChannels := make([]chan interface{}, 0, USHARDS_TOTAL)
+	quitChannels := make([]chan interface{}, 0, len(config.MY_USHARDS))
 
-	for i := uint16(0); i < USHARDS_TOTAL; i += 1 {
+	for _, ushard := range config.MY_USHARDS {
 		wg.Add(1)
 		quit := make(chan interface{}, 1)
 		quitChannels = append(quitChannels, quit)
-		go supervisor(int16(i), timerDb, runnerDb, historyDb, gateway, quit, wg)
+		go supervisor(ushard, timerDb, runnerDb, historyDb, gateway, quit, wg)
 	}
 	go broadcast(globalQuit, quitChannels)
 
@@ -117,7 +117,7 @@ func main() {
 	case "schedcore-runner":
 		run(db, db, db, config)
 	case "schedcore-api":
-		runAPI(db)
+		runAPI(db, config)
 	case "schedcore":
 		panic("Not implemented yet! (Implement API first)")
 	default:
