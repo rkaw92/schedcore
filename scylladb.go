@@ -27,6 +27,46 @@ func NewScyllaStore(hosts []string, keyspace string) (*ScyllaStore, error) {
 	}, nil
 }
 
+func (store *ScyllaStore) Create(timer *Timer) error {
+	ctx := context.TODO()
+	err := store.session.Query(`INSERT INTO timers (
+		tenant_id, timer_id, ushard, next_at, schedule, enabled, done, payload, destination
+	) VALUES (
+		?, ?, ?, ?, ?, ?, ?, ?, ?
+	)`,
+		[16]byte(timer.TenantId),
+		[16]byte(timer.TimerId),
+		timer.Ushard,
+		timer.NextAt,
+		timer.Schedule,
+		timer.Enabled,
+		timer.Done,
+		timer.Payload,
+		timer.Destination,
+	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	return err
+}
+
+func (store *ScyllaStore) Enable(tenantId uuid.UUID, timerId uuid.UUID) error {
+	ctx := context.TODO()
+	err := store.session.Query(
+		"UPDATE timers SET enabled = true WHERE tenant_id = ? AND timer_id = ?",
+		[16]byte(tenantId),
+		[16]byte(timerId),
+	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	return err
+}
+
+func (store *ScyllaStore) Disable(tenantId uuid.UUID, timerId uuid.UUID) error {
+	ctx := context.TODO()
+	err := store.session.Query(
+		"UPDATE timers SET enabled = false WHERE tenant_id = ? AND timer_id = ?",
+		[16]byte(tenantId),
+		[16]byte(timerId),
+	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
+	return err
+}
+
 func (store *ScyllaStore) GetPendingTimers(next_at time.Time, ushard int16) ([]Timer, error) {
 	all := make([]Timer, 0, 64)
 	ctx := context.TODO()

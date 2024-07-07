@@ -61,12 +61,7 @@ func supervisor(
 	wg.Done()
 }
 
-func run() {
-	db, err := NewScyllaStore([]string{"192.168.79.155"}, "timerapp")
-	if err != nil {
-		panic(err)
-	}
-
+func run(timerDb TimerStoreForRunner, runnerDb RunnerStore, historyDb HistoryStore) {
 	gateway, err := NewRabbitGateway("amqp://guest:guest@127.0.0.1/")
 	if err != nil {
 		panic(err)
@@ -76,11 +71,11 @@ func run() {
 	globalQuit := make(chan interface{})
 	quitChannels := make([]chan interface{}, 0, USHARDS_TOTAL)
 
-	for i := 0; i < USHARDS_TOTAL; i += 1 {
+	for i := uint16(0); i < USHARDS_TOTAL; i += 1 {
 		wg.Add(1)
 		quit := make(chan interface{}, 1)
 		quitChannels = append(quitChannels, quit)
-		go supervisor(int16(i), db, db, db, gateway, quit, wg)
+		go supervisor(int16(i), timerDb, runnerDb, historyDb, gateway, quit, wg)
 	}
 	go broadcast(globalQuit, quitChannels)
 
@@ -102,12 +97,18 @@ func run() {
 func main() {
 	zerolog.TimeFieldFormat = time.RFC3339
 	zerolog.TimestampFunc = func() time.Time { return time.Now().UTC() }
+
+	db, err := NewScyllaStore([]string{"192.168.79.155"}, "timerapp")
+	if err != nil {
+		panic(err)
+	}
+
 	args := os.Args
 	switch argv0 := args[0]; filepath.Base(argv0) {
 	case "schedcore-runner":
-		run()
+		run(db, db, db)
 	case "schedcore-api":
-		panic("Not implemented yet!")
+		runAPI(db)
 	case "schedcore":
 		panic("Not implemented yet! (Implement API first)")
 	default:

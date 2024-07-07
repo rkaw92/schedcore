@@ -14,8 +14,11 @@ require (
 )
 
 require (
+	github.com/danielgtaylor/huma/v2 v2.18.0 // indirect
+	github.com/go-chi/chi v1.5.5
+	github.com/go-chi/chi/v5 v5.1.0 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/google/go-cmp v0.5.5 // indirect
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
