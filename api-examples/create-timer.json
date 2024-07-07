@@ -1,8 +1,8 @@
 {
   "tenantId": "3231d6bc-be4f-462c-a6ab-36674bcc57cb",
-  "timerId": "a2854933-f897-4848-b9cd-299dd32110d0",
-  "schedule": "0 * * * *",
+  "timerId": "54c0a933-d7be-4db2-a957-93cf5bd5ac33",
+  "schedule": "* * * * *",
   "nextAt": "2024-07-07T01:01:00Z",
   "destination": "Cron/test",
-  "payload": { "hello": "hourly bell" }
+  "payload": { "hello": "minute bell" }
 }
