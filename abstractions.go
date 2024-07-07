@@ -32,8 +32,7 @@ type TimerStoreForRunner interface {
 
 type TimerStoreForAdmin interface {
 	Create(timer *Timer) error
-	Enable(tenantId uuid.UUID, timerId uuid.UUID) error
-	Disable(tenantId uuid.UUID, timerId uuid.UUID) error
+	Delete(tenantId uuid.UUID, timerId uuid.UUID, ushard int16) error
 }
 
 type RunnerStore interface {

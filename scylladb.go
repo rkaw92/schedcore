@@ -47,22 +47,13 @@ func (store *ScyllaStore) Create(timer *Timer) error {
 	return err
 }
 
-func (store *ScyllaStore) Enable(tenantId uuid.UUID, timerId uuid.UUID) error {
+func (store *ScyllaStore) Delete(tenantId uuid.UUID, timerId uuid.UUID, ushard int16) error {
 	ctx := context.TODO()
 	err := store.session.Query(
-		"UPDATE timers SET enabled = true WHERE tenant_id = ? AND timer_id = ?",
+		"DELETE FROM timers WHERE tenant_id = ? AND timer_id = ? AND ushard = ?",
 		[16]byte(tenantId),
 		[16]byte(timerId),
-	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
-	return err
-}
-
-func (store *ScyllaStore) Disable(tenantId uuid.UUID, timerId uuid.UUID) error {
-	ctx := context.TODO()
-	err := store.session.Query(
-		"UPDATE timers SET enabled = false WHERE tenant_id = ? AND timer_id = ?",
-		[16]byte(tenantId),
-		[16]byte(timerId),
+		ushard,
 	).WithContext(ctx).Consistency(gocql.LocalQuorum).Exec()
 	return err
 }
