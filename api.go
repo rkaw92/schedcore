@@ -83,6 +83,7 @@ func runAPI(adminDb TimerStoreForAdmin) {
 		if timer.NextAt.Before(time.Now().Add(MIN_TIME_HORIZON)) {
 			timer.NextAt = time.Now().Add(MIN_TIME_HORIZON)
 		}
+		timer.NextAt = timer.NextAt.Truncate(time.Second)
 		// Compute from schedule, if any
 		timer.NextAt = timer.Next()
 		err := adminDb.Create(timer)
