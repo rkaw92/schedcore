@@ -37,16 +37,16 @@ func NewScyllaStore(dbUrl url.URL) (*ScyllaStore, error) {
 func (store *ScyllaStore) Create(timer *Timer) error {
 	ctx := context.TODO()
 	err := store.session.Query(`INSERT INTO timers (
-		tenant_id, timer_id, ushard, next_at, schedule, done, payload, destination, next_invocation_id
+		tenant_id, timer_id, ushard, next_at, schedule, payload, destination, next_invocation_id
 	) VALUES (
-		?, ?, ?, ?, ?, ?, ?, ?, ?
+		?, ?, ?, ?, ?, ?, ?, ?
 	)`,
 		[16]byte(timer.TenantId),
 		[16]byte(timer.TimerId),
 		timer.Ushard,
 		timer.NextAt,
 		timer.Schedule,
-		timer.Done,
+		// NOTE: We don't set "done=false" on create to preserve idempotence - don't re-create done timers.
 		timer.Payload,
 		timer.Destination,
 		[16]byte(timer.NextInvocationId),

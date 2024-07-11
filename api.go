@@ -74,7 +74,6 @@ func runAPI(adminDb TimerStoreForAdmin, config Config) {
 			NextAt:           input.Body.NextAt,
 			Ushard:           uuid2ushard(timerId, config.TOTAL_USHARDS),
 			Schedule:         input.Body.Schedule,
-			Done:             false,
 			Payload:          input.Body.Payload,
 			Destination:      input.Body.Destination,
 			NextInvocationId: GenInvocationId(),
