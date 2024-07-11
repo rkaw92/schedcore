@@ -20,7 +20,7 @@ type CreateTimerInput struct {
 		TenantId    string          `json:"tenantId"`
 		TimerId     string          `json:"timerId"`
 		NextAt      time.Time       `json:"nextAt"`
-		Schedule    string          `json:"schedule"`
+		Schedule    string          `json:"schedule,omitempty"`
 		Payload     json.RawMessage `json:"payload"`
 		Destination string          `json:"destination"`
 	}
