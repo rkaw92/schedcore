@@ -20,6 +20,9 @@ func NewScyllaStore(dbUrl url.URL) (*ScyllaStore, error) {
 	hosts := []string{dbUrl.Host}
 
 	cluster := gocql.NewCluster(hosts...)
+	// TODO: Round-robin with local DC selection
+	cluster.PoolConfig.HostSelectionPolicy = gocql.TokenAwareHostPolicy(gocql.RoundRobinHostPolicy())
+
 	keyspace, hasPath := strings.CutPrefix(dbUrl.Path, "/")
 	if hasPath {
 		cluster.Keyspace = keyspace
