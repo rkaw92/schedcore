@@ -2,48 +2,26 @@ package main
 
 import (
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 func runner(
 	ushard int16,
+	clock <-chan time.Time,
+	tickCompletions chan<- time.Time,
 	timerDb TimerStoreForRunner,
-	runnerDb RunnerStore,
 	historyDb HistoryStore,
 	gateway MessagingGateway,
-	wallclock <-chan time.Time,
 	quit chan<- error,
 ) {
-	log.Debug().Int16("ushard", ushard).Msg("runner starting")
-	myState, err := runnerDb.GetState(ushard)
-	if err != nil {
-		quit <- err
-		return
-	}
-	startAt := myState.Next
-	isNew := false
-	if startAt.IsZero() {
-		startAt = time.Now()
-		isNew = true
-	}
-	log.Info().Int16("ushard", ushard).Time("startAt", startAt).Bool("isNew", isNew).Msg("runner started")
+	defer close(tickCompletions)
+
 	dispatcher, err := gateway.GetDispatcherForRunner()
 	if err != nil {
 		quit <- err
 		return
 	}
 
-	workerTicker := make(chan time.Time, 10)
-	go virtclock(wallclock, startAt, workerTicker)
-
-	for timestamp := range workerTicker {
-		myState.Next = timestamp
-		err := runnerDb.SaveState(myState)
-		if err != nil {
-			quit <- err
-			return
-		}
+	for timestamp := range clock {
 		pending, err := timerDb.GetPendingTimers(timestamp, ushard)
 		if err != nil {
 			quit <- err
@@ -110,8 +88,10 @@ func runner(
 			quit <- failures[0]
 			return
 		}
+		// Mark iteration as done to our supervisor
+		tickCompletions <- timestamp
 	}
 
-	// Signal to the supervisor that we're done.
+	// Signal to the supervisor that we're all done.
 	quit <- nil
 }
