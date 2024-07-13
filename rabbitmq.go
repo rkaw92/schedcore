@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -11,8 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const PUBLISH_TIMEOUT = time.Second * 10
+
 type RabbitGateway struct {
-	publisher *amqp.Publisher
+	config amqp.Config
 }
 
 func NewRabbitGateway(url url.URL) (*RabbitGateway, error) {
@@ -38,41 +42,41 @@ func NewRabbitGateway(url url.URL) (*RabbitGateway, error) {
 		},
 		TopologyBuilder: &amqp.DefaultTopologyBuilder{},
 	}
-	pub, err := amqp.NewPublisher(config, zerowater.NewZerologLoggerAdapter(
+	return &RabbitGateway{config}, nil
+}
+
+func (gateway *RabbitGateway) GetDispatcherForRunner() (TimerDispatcher, error) {
+	pub, err := amqp.NewPublisher(gateway.config, zerowater.NewZerologLoggerAdapter(
 		log.Logger.With().Str("component", "RabbitGateway").Logger(),
 	))
 	if err != nil {
 		return nil, err
 	}
-	return &RabbitGateway{
-		publisher: pub,
-	}, nil
-}
-
-func (gateway *RabbitGateway) GetDispatcherForRunner() (TimerDispatcher, error) {
-	return &RabbitDispatcher{
-		gateway,
-	}, nil
+	return &RabbitDispatcher{pub}, nil
 }
 
 type RabbitDispatcher struct {
-	gateway *RabbitGateway
+	pub *amqp.Publisher
 }
 
 func (dispatcher *RabbitDispatcher) Dispatch(
-	timer TimerMessage,
+	msg TimerMessage,
 	update *TimerUpdate,
 	results chan<- DispatchResult,
 ) {
-	body, err := json.Marshal(timer)
+	body, err := json.Marshal(msg)
 	if err != nil {
 		results <- DispatchResult{nil, err}
 		return
 	}
-	err = dispatcher.gateway.publisher.Publish(timer.Destination, message.NewMessage(
-		timer.InvocationId.String(),
+	lowLevelMsg := message.NewMessage(
+		msg.InvocationId.String(),
 		body,
-	))
+	)
+	timeoutCtx, cancelTimeout := context.WithTimeout(context.Background(), PUBLISH_TIMEOUT)
+	defer cancelTimeout()
+	lowLevelMsg.SetContext(timeoutCtx)
+	err = dispatcher.pub.Publish(msg.Destination, lowLevelMsg)
 	if err != nil {
 		results <- DispatchResult{nil, err}
 	} else {
@@ -81,5 +85,5 @@ func (dispatcher *RabbitDispatcher) Dispatch(
 }
 
 func (dispatcher *RabbitDispatcher) Destroy() error {
-	return dispatcher.gateway.publisher.Close()
+	return dispatcher.pub.Close()
 }

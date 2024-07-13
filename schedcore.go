@@ -101,6 +101,7 @@ func supervisor(
 			}
 		}
 	}
+	log.Debug().Int16("ushard", ushard).Msg("supervisor is ending")
 	wg.Done()
 }
 
