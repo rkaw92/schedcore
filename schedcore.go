@@ -35,11 +35,12 @@ func startRunner(
 	secondsClock <-chan time.Time,
 	runnerQuit chan<- error,
 	ctx context.Context,
-) error {
+) {
 	log.Debug().Int16("ushard", ushard).Msg("starting runner")
 	initialState, err := runnerDb.GetState(ushard)
 	if err != nil {
-		return err
+		runnerQuit <- err
+		return
 	}
 	isNew := false
 	if initialState.Next.IsZero() {
@@ -62,7 +63,6 @@ func startRunner(
 			}
 		}
 	}(tickCompletions, initialState)
-	return nil
 }
 
 func supervisor(
