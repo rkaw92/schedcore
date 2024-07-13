@@ -1,6 +1,9 @@
 package main
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type CustomTicker struct {
 	realTicker     *time.Ticker
@@ -44,11 +47,18 @@ func seconds(input <-chan time.Time, output chan<- time.Time) {
 
 // Produces a channel that emits virtual-time ticks, where time is accelerated as needed
 // to match the wall-time ticks. This behaves exactly the same, except when late.
-func virtclock(walltime <-chan time.Time, startAt time.Time, output chan<- time.Time) {
+func virtclock(walltime <-chan time.Time, startAt time.Time, output chan<- time.Time, ctx context.Context) {
 	virtualNow := startAt.Truncate(time.Second)
+clocksequence:
 	for wallNow := range walltime {
 		// Every time we get a tick from "upstream", fast-forward to it.
 		for virtualNow.Before(wallNow) {
+			select {
+			case <-ctx.Done():
+				break clocksequence
+			default:
+				// no-op: keep iterating
+			}
 			output <- virtualNow
 			virtualNow = virtualNow.Add(time.Second)
 		}

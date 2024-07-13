@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -33,6 +34,7 @@ func startRunner(
 	gateway MessagingGateway,
 	secondsClock <-chan time.Time,
 	runnerQuit chan<- error,
+	ctx context.Context,
 ) error {
 	log.Debug().Int16("ushard", ushard).Msg("starting runner")
 	initialState, err := runnerDb.GetState(ushard)
@@ -45,7 +47,7 @@ func startRunner(
 		isNew = true
 	}
 	runnerClock := make(chan time.Time, 10)
-	go virtclock(secondsClock, initialState.Next, runnerClock)
+	go virtclock(secondsClock, initialState.Next, runnerClock, ctx)
 	tickCompletions := make(chan time.Time, 10)
 	go runner(ushard, runnerClock, tickCompletions, timerDb, historyDb, gateway, runnerQuit)
 	log.Info().Int16("ushard", ushard).Time("startAt", initialState.Next).Bool("isNew", isNew).Msg("runner started")
@@ -76,9 +78,11 @@ func supervisor(
 	secondsClock := make(chan time.Time, 1)
 	go seconds(wallclockTicker.Ticks, secondsClock)
 	end := false
+	clockCtx, stopClock := context.WithCancel(context.Background())
+	defer stopClock()
 	for !end {
 		runnerQuit := make(chan error)
-		startRunner(ushard, timerDb, runnerDb, historyDb, gateway, secondsClock, runnerQuit)
+		startRunner(ushard, timerDb, runnerDb, historyDb, gateway, secondsClock, runnerQuit, clockCtx)
 		isRunnerExited := false
 		for !isRunnerExited {
 			select {
@@ -93,6 +97,7 @@ func supervisor(
 			case <-endProgram:
 				end = true
 				wallclockTicker.Destroy()
+				stopClock()
 			}
 		}
 	}
@@ -127,7 +132,7 @@ func run(
 		endSignal := make(chan os.Signal, 1)
 		signal.Notify(endSignal, syscall.SIGINT, syscall.SIGTERM)
 		gotSignal := <-endSignal
-		log.Info().Str("signal", gotSignal.String()).Msg("preparing to terminate, will catch up to real time first - send the signal again to skip")
+		log.Info().Str("signal", gotSignal.String()).Msg("will terminate after processing the current timestamp's timers - send signal again to make immediate")
 		globalQuit <- nil
 		// If we get another signal, it means the user is impatient and we should terminate right now.
 		<-endSignal
