@@ -132,7 +132,7 @@ func run(
 		endSignal := make(chan os.Signal, 1)
 		signal.Notify(endSignal, syscall.SIGINT, syscall.SIGTERM)
 		gotSignal := <-endSignal
-		log.Info().Str("signal", gotSignal.String()).Msg("will terminate after processing the current timestamp's timers - send signal again to make immediate")
+		log.Info().Str("signal", gotSignal.String()).Msg("will terminate after finishing the current timestamp - send signal again to make immediate")
 		globalQuit <- nil
 		// If we get another signal, it means the user is impatient and we should terminate right now.
 		<-endSignal
