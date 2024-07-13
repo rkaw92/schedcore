@@ -81,6 +81,5 @@ func (dispatcher *RabbitDispatcher) Dispatch(
 }
 
 func (dispatcher *RabbitDispatcher) Destroy() error {
-	// TODO: Figure out why this doesn't quit the process
 	return dispatcher.gateway.publisher.Close()
 }

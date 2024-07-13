@@ -20,6 +20,7 @@ func runner(
 		quit <- err
 		return
 	}
+	defer dispatcher.Destroy()
 
 	for timestamp := range clock {
 		pending, err := timerDb.GetPendingTimers(timestamp, ushard)
